@@ -44,17 +44,14 @@ class CaptureData:
         data[HEAD_BONE_X] = 0.0
         data[HEAD_BONE_Y] = 0.0
         data[HEAD_BONE_Z] = 0.0
-        data[HEAD_BONE_QUAT] = [0.0, 0.0, 0.0, 1.0]
 
         data[LEFT_EYE_BONE_X] = 0.0
         data[LEFT_EYE_BONE_Y] = 0.0
         data[LEFT_EYE_BONE_Z] = 0.0
-        data[LEFT_EYE_BONE_QUAT] = [0.0, 0.0, 0.0, 1.0]
 
         data[RIGHT_EYE_BONE_X] = 0.0
         data[RIGHT_EYE_BONE_Y] = 0.0
         data[RIGHT_EYE_BONE_Z] = 0.0
-        data[RIGHT_EYE_BONE_QUAT] = [0.0, 0.0, 0.0, 1.0]
 
         return data
 
@@ -64,70 +61,66 @@ class ClientThread(threading.Thread):
         super().__init__()
         self.capture_data = capture_data
         self.should_terminate = False
-        self.address = "0.0.0.0"
-        self.port = 50002
+        self.address = "192.168.137.124"
+        self.port = 49983
 
     def run(self):
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.setblocking(False)
-        self.socket.bind((self.address, self.port))
-        while True:
-            if self.should_terminate:
-                break
+        self.udp_listener_loop()
+
+    def udp_listener_loop(self):
+        udpClntSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        data = "iFacialMocap_sahuasouryya9218sauhuiayeta91555dy3719"
+        data = data.encode('utf-8')
+        udpClntSock.sendto(data, (self.address, self.port))
+
+        server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        server.bind(("", 49983))
+        server.settimeout(0.05)
+
+        while not self.should_terminate:
             try:
-                socket_bytes = self.socket.recv(8192)
-            except socket.error as e:
-                err = e.args[0]
-                if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
-                    continue
-                else:
-                    raise e
-            socket_string = socket_bytes.decode("utf-8")
-            blender_data = json.loads(socket_string)
-            data = self.convert_from_blender_data(blender_data)
-            self.capture_data.write_data(data)
-        self.socket.close()
+                messages, address = server.recvfrom(8192)
+                udp_msg = messages.decode('utf-8')
+                data = self.convert_from_raw_data(udp_msg)
+                self.capture_data.write_data(data)
+            except:
+                pass
 
     @staticmethod
-    def convert_from_blender_data(blender_data):
+    def convert_from_raw_data(raw_data):
+        params_dict = {}
+        param_strs = raw_data.strip('|').split('|')
+        for param_str in param_strs:
+            if('#' in param_str):  
+                key_val_str = param_str.split('#')
+                key = key_val_str[0]
+                vals = []
+                val_strs = key_val_str[1].split(',')
+                for val_str in val_strs:
+                    vals.append(float(val_str))
+                params_dict[key] = vals
+            else:
+                key_val_str = param_str.split('-')
+                key = key_val_str[0]
+                val = float(key_val_str[1]) / 100
+                params_dict[key] = val
+
         data = {}
 
-        shape_key_values = blender_data["shapeKeyValues"]
         for blendshape_name in BLENDSHAPE_NAMES:
-            data[blendshape_name] = shape_key_values[blendshape_name]
+            data[blendshape_name] = params_dict[blendshape_name]
 
-        head_bone = blender_data["boneValues"]["armatures"]["bones"]["headBone"]
-        data[HEAD_BONE_X] = head_bone["e_rx"]
-        data[HEAD_BONE_Y] = head_bone["e_ry"]
-        data[HEAD_BONE_Z] = head_bone["e_rz"]
-        data[HEAD_BONE_QUAT] = [
-            head_bone["q_rx"],
-            head_bone["q_ry"],
-            head_bone["q_rz"],
-            head_bone["q_w"],
-        ]
+        data[HEAD_BONE_X] = params_dict["=head"][0] / 60
+        data[HEAD_BONE_Y] = params_dict["=head"][1] / 60
+        data[HEAD_BONE_Z] = params_dict["=head"][2] / 60
 
-        right_eye_bone = blender_data["boneValues"]["armatures"]["bones"]["rightEyeBone"]
-        data[RIGHT_EYE_BONE_X] = right_eye_bone["e_rx"]
-        data[RIGHT_EYE_BONE_Y] = right_eye_bone["e_ry"]
-        data[RIGHT_EYE_BONE_Z] = right_eye_bone["e_rz"]
-        data[RIGHT_EYE_BONE_QUAT] = [
-            right_eye_bone["q_rx"],
-            right_eye_bone["q_ry"],
-            right_eye_bone["q_rz"],
-            right_eye_bone["q_w"],
-        ]
+        data[RIGHT_EYE_BONE_X] = params_dict["rightEye"][0] / 60
+        data[RIGHT_EYE_BONE_Y] = params_dict["rightEye"][1] / 60
+        data[RIGHT_EYE_BONE_Z] = params_dict["rightEye"][2] / 60
 
-        left_eye_bone = blender_data["boneValues"]["armatures"]["bones"]["leftEyeBone"]
-        data[LEFT_EYE_BONE_X] = left_eye_bone["e_rx"]
-        data[LEFT_EYE_BONE_Y] = left_eye_bone["e_ry"]
-        data[LEFT_EYE_BONE_Z] = left_eye_bone["e_rz"]
-        data[LEFT_EYE_BONE_QUAT] = [
-            left_eye_bone["q_rx"],
-            left_eye_bone["q_ry"],
-            left_eye_bone["q_rz"],
-            left_eye_bone["q_w"],
-        ]
+        data[LEFT_EYE_BONE_X] = params_dict["leftEye"][0] / 60
+        data[LEFT_EYE_BONE_Y] = params_dict["leftEye"][1] / 60
+        data[LEFT_EYE_BONE_Z] = params_dict["leftEye"][2] / 60
 
         return data
 
@@ -481,7 +474,7 @@ if __name__ == "__main__":
 
     cuda = torch.device('cuda')
     poser = tha2.poser.modes.mode_20.create_poser(cuda)
-    pose_converter = tha2.poser.modes.mode_20_wx.create_ifacialmocap_pose_converter()
+    pose_converter = tha2.poser.modes.mode_20_wx.create_ifacialmocap_pose_converter(tha2.poser.modes.mode_20_wx.IFacialMocapPoseConverter20Args(jaw_open_min_value = 0.01, eye_wink_max_value = 0.75))
 
     app = wx.App()
     main_frame = MainFrame(poser, pose_converter, cuda)
