@@ -1,4 +1,17 @@
+"""\
+------------------------------------------------------------
+USE: python <PROGNAME> (options)
+OPTIONS:
+    -h : print this help message
+    -c ADDRESS : The IP address of your iPhone
+
+EXAMPLES:
+    python <PROGNAME> -c 192.168.137.124
+------------------------------------------------------------\
+"""
+
 import errno
+import getopt
 import json
 import os
 import socket
@@ -57,11 +70,11 @@ class CaptureData:
 
 
 class ClientThread(threading.Thread):
-    def __init__(self, capture_data: CaptureData):
+    def __init__(self, capture_data: CaptureData, udp_address: str):
         super().__init__()
         self.capture_data = capture_data
         self.should_terminate = False
-        self.address = "192.168.137.124"
+        self.udp_address = udp_address
         self.port = 49983
 
     def run(self):
@@ -71,7 +84,7 @@ class ClientThread(threading.Thread):
         udpClntSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         data = "iFacialMocap_sahuasouryya9218sauhuiayeta91555dy3719"
         data = data.encode('utf-8')
-        udpClntSock.sendto(data, (self.address, self.port))
+        udpClntSock.sendto(data, (self.udp_address, self.port))
 
         server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         server.bind(("", 49983))
@@ -126,13 +139,13 @@ class ClientThread(threading.Thread):
 
 
 class MainFrame(wx.Frame):
-    def __init__(self, poser: Poser, pose_converter: IFacialMocapPoseConverter, device: torch.device):
+    def __init__(self, poser: Poser, pose_converter: IFacialMocapPoseConverter, device: torch.device, udp_address: str):
         super().__init__(None, wx.ID_ANY, "iFacialMocap Puppeteer")
         self.pose_converter = pose_converter
         self.poser = poser
         self.device = device
         self.capture_data = CaptureData()
-        self.client_thread = ClientThread(self.capture_data)
+        self.client_thread = ClientThread(self.capture_data, udp_address)
         self.create_ui()
         self.Bind(wx.EVT_CLOSE, self.on_close)
 
@@ -467,8 +480,41 @@ class MainFrame(wx.Frame):
                 message_dialog.Destroy()
         file_dialog.Destroy()
 
+class CommandLine:
+    ''' CommandLine util.
+        Parse command line params.
+    '''
+
+    def __init__(self):
+        opts, args = getopt.getopt(sys.argv[1:], 'c:')
+        opts = dict(opts)
+        self.exit = True
+
+        if '-h' in opts:
+            self.printHelp()
+            return
+
+        if '-c' in opts:
+            self.udp_address = opts['-c']
+        else:
+            print("*** ERROR: must specify UDP address (opt: -c ADDRESS) ***",
+                  file=sys.stderr)
+            self.printHelp()
+            return
+
+        self.exit = False
+
+    def printHelp(self):
+        progname = sys.argv[0]
+        progname = progname.split('/')[-1] # strip off extended path
+        help = __doc__.replace('<PROGNAME>', progname)
+        print(help, file=sys.stderr)
 
 if __name__ == "__main__":
+    config = CommandLine()
+    if config.exit:
+        sys.exit(0)
+
     import tha2.poser.modes.mode_20
     import tha2.poser.modes.mode_20_wx
 
@@ -477,6 +523,6 @@ if __name__ == "__main__":
     pose_converter = tha2.poser.modes.mode_20_wx.create_ifacialmocap_pose_converter(tha2.poser.modes.mode_20_wx.IFacialMocapPoseConverter20Args(jaw_open_min_value = 0.01, eye_wink_max_value = 0.75))
 
     app = wx.App()
-    main_frame = MainFrame(poser, pose_converter, cuda)
+    main_frame = MainFrame(poser, pose_converter, cuda, config.udp_address)
     main_frame.Show(True)
     app.MainLoop()
