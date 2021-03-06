@@ -62,9 +62,7 @@ This means that, in addition to the commands above, you also need to run:
 ```
 
 Lastly, the `ifacialmocap_puppeteer` requires iFacialMocap, which is 
-[available in the App Store](https://apps.apple.com/us/app/ifacialmocap/id1489470545) for 980 yen. You also need to 
-install the [paired desktop application](https://www.ifacialmocap.com/download/) on your PC or Mac. (Linux users, 
-I'm sorry!) Your iOS and your computer must also use the same network. (For example, you may connect them to the same 
+[available in the App Store](https://apps.apple.com/us/app/ifacialmocap/id1489470545) for 980 yen. Your iOS and your computer must also use the same network. (For example, you may connect them to the same 
 wireless router.)
 
 ### Automatic Environment Construction with Anaconda
@@ -141,35 +139,13 @@ First, run iFacialMocap on your iOS device. It should show you the device's IP a
 
 ![IP address in iFacialMocap screen](docs/ifacialmocap_1.jpg "IP address in iFacialMocap screen")
 
-Then, run the companion desktop application.
-
-![iFaciaMocap desktop application](docs/ifacialmocap_2.png "iFaciaMocap desktop application")
-
-Click "Open Advanced Setting >>". The application should expand. 
-
-![Click the 'Open Advanced Setting >>' button.](docs/ifacialmocap_3.png "iClick the 'Open Advanced Setting >>' button.")
-
-Click the button that says "Maya" on the right side.
-
-![Click the 'Maya' button.](docs/ifacialmocap_4.png "Click the 'Maya' button.")
-
-Then, click "Blender."
-
-![Select 'Blender' mode in the desktop application](docs/ifacialmocap_5.png "Select 'Blender' mode in the desktop application.")
-
-Next, replace the IP address on the left side with your iOS device's IP address.
-
-![Replace IP address with device's IP address.](docs/ifacialmocap_6.png "Replace IP address with device's IP address.")
-
-Click "Connect to Blender."
-
-![Click 'Connect to Blender.'](docs/ifacialmocap_7.png "Click 'Connect to Blender.'")
-
-Open a shell. Activate the environment. Change your working directory to the repository's root directory. Then, run:
+Then, open a shell. Activate the environment. Change your working directory to the repository's root directory. Then, run:
 
 ```
-> python tha2/app/ifacialmocap_puppeteer.py
+> python tha2/app/ifacialmocap_puppeteer.py -c [IP address]
 ```
+
+where **[IP address]** should been replaced by your iPhone IP address.
 
 If the programs are connected properly, you should see that the many progress bars at the bottom of the
 `ifacialmocap_puppeteer` window should move when you move your face in front of the iOS device's front-facing camera.
